@@ -1,0 +1,159 @@
+package test.model;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+
+import dto.ItemDTO;
+import dto.ReceiptDTO;
+import dto.SaleDTO;
+import model.Sale;
+import model.VAT;
+import model.Amount;
+
+public class SaleTest {
+    private ItemDTO testItemDTO; 
+    private Sale testSale;
+
+    @BeforeEach
+    void setUp() {
+        testItemDTO = new ItemDTO(
+            "123", 
+            "Test Item", 
+            new Amount(100.0), 
+            VAT.VAT_6,
+            3, 
+            "Sample Item Name"
+        );
+        
+        testSale = new Sale();
+    }
+
+    @AfterEach
+    void tearDown() {
+        testItemDTO = null;
+        testSale = null;
+    }
+
+    @Test
+    void testAddItemToSale() {
+        testSale.addItemToSale(testItemDTO, testItemDTO.getQuantity());
+
+        List<ItemDTO> itemDTOList = testSale.getListOfItemDTOs(); 
+        ItemDTO insertedItemDTO = itemDTOList.get(0);
+
+        assertEquals(testItemDTO.getItemDescription(), insertedItemDTO.getItemDescription(), "Inserting ItemDTO to Sale has changed its description?");
+        assertEquals(testItemDTO.getItemIdentifier(), insertedItemDTO.getItemIdentifier(), "Inserting ItemDTO to Sale has changed its identifier?");
+        assertEquals(testItemDTO.getName(), insertedItemDTO.getName(), "Inserting ItemDTO to Sale has changed its name?");
+        assertEquals(testItemDTO.getPrice(), insertedItemDTO.getPrice(), "Inserting ItemDTO to Sale has changed its price?");
+        assertEquals(testItemDTO.getQuantity(), insertedItemDTO.getQuantity(), "Inserting ItemDTO to Sale has changed its quantity?");
+        assertEquals(testItemDTO.getVatRate(), insertedItemDTO.getVatRate(), "Inserting ItemDTO to Sale has changed its VAT Rate?");
+    }
+    
+    @Test
+    void testAddItemToSaleIncreasesQuantity() {
+        testSale.addItemToSale(testItemDTO, 1);
+        testSale.addItemToSale(testItemDTO, 2);
+
+        ItemDTO updatedItem = testSale.getItemByIdentifier("123");
+        assertEquals(3, updatedItem.getQuantity(), "Quantity should be updated to 3.");
+    }
+
+    @Test
+    void testAddItemWithZeroQuantity() {
+        testSale.addItemToSale(testItemDTO, 0);
+        assertTrue(testSale.getListOfItemDTOs().isEmpty(), "Item with zero quantity should not be added.");
+    }
+
+    @Test
+    void testAddItemWithMaxIntQuantity() {
+        testSale.addItemToSale(testItemDTO, Integer.MAX_VALUE);
+        ItemDTO addedItem = testSale.getItemByIdentifier(testItemDTO.getItemIdentifier());
+        assertEquals(Integer.MAX_VALUE, addedItem.getQuantity(), "Should support large item quantities.");
+    }
+
+    @Test
+    void testAddItemWithNegativeQuantity() {
+        testSale.addItemToSale(testItemDTO, -5);
+        assertTrue(testSale.getListOfItemDTOs().isEmpty(), "Item with zero quantity should not be added.");
+    }
+
+    @Test
+    void testAddNullItem() {
+        assertThrows(NullPointerException.class, () -> {
+            testSale.addItemToSale(null, 1);
+        }, "Should throw exception when adding null item.");
+    }
+
+    @Test
+    void testCalculateTotalPrice() {
+        ItemDTO exampleTestItemDTO = new ItemDTO("1234", "Item 1", new Amount(100.0), VAT.VAT_25, 1, "Item One");
+
+        testSale.addItemToSale(exampleTestItemDTO, 1);
+        testSale.addItemToSale(testItemDTO, 2);
+
+        Amount totalPrice = testSale.calculateTotalPrice();
+        assertEquals(337.0, totalPrice.getAmount(), "Total price should be 337.0.");
+    }
+
+    @Test
+    void testCalculateTotalOnEmptySale() {
+        Amount total = testSale.calculateTotalPrice();
+        assertEquals(0.0, total.getAmount(), "Total should be 0 for empty sale.");
+    }
+    
+    @Test
+    void testCalculateTotalVAT() {
+        ItemDTO exampleTestItemDTO = new ItemDTO("345", "Item 1", new Amount(100.0), VAT.VAT_12, 1, "Item One");
+
+        testSale.addItemToSale(exampleTestItemDTO, 4);
+        testSale.addItemToSale(testItemDTO, 5);
+
+        Amount totalVAT = testSale.calculateTotalVAT();
+        assertEquals(78.0, totalVAT.getAmount(), "Total VAT should be 78.0.");
+    }
+
+    @Test
+    void testPayAndCalculateChange() {
+        ItemDTO exampleTestItemDTO = new ItemDTO("345", "Item 1", new Amount(100.0), VAT.VAT_6, 1, "Item One");
+        testSale.addItemToSale(exampleTestItemDTO, 3);
+
+        testSale.pay(new Amount(400.0));
+        Amount change = testSale.calculateChange();
+
+        assertEquals(82.0, change.getAmount(), "Change should be 82.0.");
+    }
+
+    @Test
+    void testGetSaleInformation() {
+        ItemDTO exampleTestItemDTO = new ItemDTO("345", "Item 1", new Amount(100.0), VAT.VAT_6, 1, "Item One");
+        testSale.addItemToSale(exampleTestItemDTO, 2);
+        testSale.addItemToSale(testItemDTO, 4);
+
+        SaleDTO saleDTO = testSale.getSaleInformation();
+        List<ItemDTO> itemDTOs = saleDTO.getItems();
+
+        assertEquals(2, itemDTOs.size(), "SaleDTO should contain two item (types).");
+        assertEquals(636.0, saleDTO.getRunningTotal().getAmount(), "Total price in SaleDTO should be 636.0.");
+        assertEquals(36.0, saleDTO.getTotalVAT().getAmount(), "Total VAT in SaleDTO should be 36.0.");
+    }    
+
+    @Test
+    void testGetReceiptInformation() {
+        ItemDTO exampleTestItemDTO = new ItemDTO("345", "Item 1", new Amount(100.0), VAT.VAT_6, 1, "Item One");
+        testSale.addItemToSale(exampleTestItemDTO, 2);
+
+        testSale.pay(new Amount(300.0));
+
+        ReceiptDTO receiptDTO = testSale.getReceiptInformation();
+
+        assertNotNull(receiptDTO, "ReceiptDTO should not be null.");
+        assertEquals(1, receiptDTO.getItems(), "ReceiptDTO should contain one item (type).");
+        assertEquals(212.0, receiptDTO.getTotalPrice().getAmount(), "Total price in ReceiptDTO should be 212.0.");
+        assertEquals(88.0, receiptDTO.getChange().getAmount(), "Change in ReceiptDTO should be 75.0.");
+    }
+}
+
