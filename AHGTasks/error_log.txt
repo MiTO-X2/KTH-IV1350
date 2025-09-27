@@ -1,0 +1,23 @@
+=== ERROR LOG ENTRY ===
+Time: 2025-05-29T23:31:39.956
+Exception: DatabaseFailureException
+Message: Failed to connect to the inventory database.
+    at integration.ExternalInventorySystem.retrieveItemInformation(ExternalInventorySystem.java:65)
+    at controller.Controller.registerItem(Controller.java:85)
+    at view.View.registerItem(View.java:78)
+    at view.View.simulateSaleExecution(View.java:49)
+    at view.View.<init>(View.java:33)
+    at startup.Main.main(Main.java:23)
+========================
+
+=== ERROR LOG ENTRY ===
+Time: 2025-05-29T23:31:39.965
+Exception: IllegalArgumentException
+Message: Payment is less than the total price. Payment rejected.
+    at model.Sale.pay(Sale.java:177)
+    at controller.Controller.concludeSale(Controller.java:118)
+    at view.View.simulateSaleExecution(View.java:67)
+    at view.View.<init>(View.java:33)
+    at startup.Main.main(Main.java:23)
+========================
+
